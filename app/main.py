@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api.routers import health
+from app.api.routers import health, products
 from app.core.logging import configure_logging
 from app.infra.db import create_database_engine, create_session_factory
 from app.infra.settings import Settings, get_settings
@@ -34,6 +34,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = resolved
     app.include_router(health.router)
+    app.include_router(products.router)
     return app
 
 
