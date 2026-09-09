@@ -8,7 +8,7 @@ from sqlalchemy import Connection, pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.infra.settings import get_settings
-from app.models.base import Base
+from app.models import Base
 
 config = context.config
 
@@ -45,7 +45,6 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_migrations_online() -> None:
-    """Run migrations against a live database using an async engine."""
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
