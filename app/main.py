@@ -5,7 +5,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api.routers import health, products
+from app.api.errors import register_error_handlers
+from app.api.routers import health, orders, products
 from app.core.logging import configure_logging
 from app.infra.db import create_database_engine, create_session_factory
 from app.infra.settings import Settings, get_settings
@@ -33,8 +34,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = resolved
+    register_error_handlers(app)
     app.include_router(health.router)
     app.include_router(products.router)
+    app.include_router(orders.router)
     return app
 
 
