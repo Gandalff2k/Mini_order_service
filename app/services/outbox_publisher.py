@@ -18,6 +18,11 @@ from app.repositories.outbox_repository import OutboxRepository
 logger = logging.getLogger(__name__)
 
 
+def _describe(error: BaseException) -> str:
+    details = str(error)
+    return f"{type(error).__name__}: {details}" if details else type(error).__name__
+
+
 @dataclass(frozen=True)
 class PublishOutcome:
     published: int
@@ -89,7 +94,7 @@ class OutboxPublisher:
                 continue
 
             message.attempts += 1
-            message.last_error = f"{type(error).__name__}: {error}"
+            message.last_error = _describe(error)
             if message.attempts >= self._settings.max_attempts:
                 message.status = OutboxStatus.FAILED
                 message.failed_at = now

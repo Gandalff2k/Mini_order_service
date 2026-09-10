@@ -32,14 +32,14 @@ async def publish_outbox(stop: asyncio.Event) -> None:
         settings.kafka.orders_topic,
     )
 
-    await producer.start()
-    logger.info(
-        "%s publishing to %s via %s",
-        WORKER_NAME,
-        settings.kafka.orders_topic,
-        settings.kafka.bootstrap_servers,
-    )
     try:
+        await producer.start()
+        logger.info(
+            "%s publishing to %s via %s",
+            WORKER_NAME,
+            settings.kafka.orders_topic,
+            settings.kafka.bootstrap_servers,
+        )
         while not stop.is_set():
             try:
                 outcome = await publisher.publish_pending()

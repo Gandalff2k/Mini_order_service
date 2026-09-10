@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "order-service"
 version = "0.1.0"
-description = "Order processing service with a transactional outbox and Kafka notifications"
+description = "Order processing service"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

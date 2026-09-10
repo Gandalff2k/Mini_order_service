@@ -16,7 +16,6 @@ from app.infra.settings import Settings, get_settings
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings: Settings = app.state.settings
     engine = create_database_engine(settings.database)
-    app.state.engine = engine
     app.state.session_factory = create_session_factory(engine)
     try:
         yield

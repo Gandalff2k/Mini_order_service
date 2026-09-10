@@ -14,7 +14,7 @@ from app.workers.runner import run_worker
 logger = logging.getLogger(__name__)
 
 WORKER_NAME = "notification-consumer"
-POLL_TIMEOUT_SECONDS = 1.0
+POLL_TIMEOUT_MS = 1000
 
 
 def to_incoming(record: Any) -> IncomingMessage:
@@ -25,13 +25,6 @@ def to_incoming(record: Any) -> IncomingMessage:
         key=record.key,
         value=record.value,
     )
-
-
-async def next_record(consumer: Any) -> Any | None:
-    try:
-        return await asyncio.wait_for(consumer.getone(), timeout=POLL_TIMEOUT_SECONDS)
-    except TimeoutError:
-        return None
 
 
 async def consume_notifications(stop: asyncio.Event) -> None:
@@ -47,25 +40,27 @@ async def consume_notifications(stop: asyncio.Event) -> None:
         settings.kafka.dlq_topic,
     )
 
-    await dead_letters.start()
-    await consumer.start()
-    logger.info(
-        "%s reading %s as group %s",
-        WORKER_NAME,
-        settings.kafka.orders_topic,
-        settings.kafka.consumer_group_id,
-    )
     try:
+        await dead_letters.start()
+        await consumer.start()
+        logger.info(
+            "%s reading %s as group %s",
+            WORKER_NAME,
+            settings.kafka.orders_topic,
+            settings.kafka.consumer_group_id,
+        )
         while not stop.is_set():
-            record = await next_record(consumer)
-            if record is None:
-                continue
-            if await handler.process(to_incoming(record), stop):
-                await consumer.commit()
+            batch = await consumer.getmany(timeout_ms=POLL_TIMEOUT_MS)
+            for topic_partition, records in batch.items():
+                for record in records:
+                    if not await handler.process(to_incoming(record), stop):
+                        return
+                    await consumer.commit({topic_partition: record.offset + 1})
     finally:
         with contextlib.suppress(Exception):
             await consumer.stop()
-        await dead_letters.stop()
+        with contextlib.suppress(Exception):
+            await dead_letters.stop()
         await engine.dispose()
 
 

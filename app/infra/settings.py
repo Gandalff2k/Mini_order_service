@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import quote
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -31,10 +32,9 @@ class DatabaseSettings(BaseSettings):
 
     @property
     def url(self) -> str:
-        return (
-            f"postgresql+asyncpg://{self.user}:{self.password.get_secret_value()}"
-            f"@{self.host}:{self.port}/{self.name}"
-        )
+        user = quote(self.user, safe="")
+        password = quote(self.password.get_secret_value(), safe="")
+        return f"postgresql+asyncpg://{user}:{password}@{self.host}:{self.port}/{self.name}"
 
 
 class KafkaSettings(BaseSettings):
