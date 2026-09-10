@@ -57,7 +57,7 @@ class OrderItemResponse(BaseModel):
             product_id=item.product_id,
             quantity=item.quantity,
             unit_price=item.unit_price,
-            line_total=item.unit_price * item.quantity,
+            line_total=item.unit_price * item.quantity, #calculated line
         )
 
 

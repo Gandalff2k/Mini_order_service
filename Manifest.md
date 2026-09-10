@@ -78,33 +78,8 @@ review at a serious company:
 - Alembic migrations — for every structural change, meaningful revision
   names, no manually editing the schema outside of migrations.
 
-## 4. Concurrency and transactionality — the core of this task
 
-This is the heart of the task, so it gets special attention and no
-"roughly correct":
-
-- Stock decrement must be atomic and safe under concurrent orders for
-  the last unit of a product (`SELECT ... FOR UPDATE` or a conditional
-  `UPDATE ... WHERE stock >= :qty RETURNING`) — confirm with me which
-  approach we're using before implementing it.
-- Order + order_items + outbox record are written in a SINGLE
-  transaction (Transactional Outbox) — never "write the order first,
-  then separately write the event."
-- `Idempotency-Key` handling must guarantee that a retried request with
-  the same key never creates a second order — even under concurrent
-  identical requests (a database-level unique constraint, not a
-  "SELECT then INSERT" check that's vulnerable to a race).
-- The `order.created` consumer is idempotent by `event_id`
-  (unique constraint/upsert on the notification), since Kafka delivery
-  is at-least-once.
-- Rollback: if any part of the transaction fails, there must be no
-  partial state (stock decremented without an order, an order without
-  an outbox record).
-
-If you're unsure which consistency mechanism to use — ask, don't
-improvise on the fly.
-
-## 5. Tests — real, not placeholders
+## 4. Tests — real, not placeholders
 
 This is critical: tests must verify actual behavior, not exist to pad
 coverage numbers.
@@ -138,7 +113,7 @@ coverage numbers.
   removed is not a test. If in doubt whether a test actually checks
   anything — remove the logic under test and confirm the test goes red.
 
-## 6. Communication with me
+## 5. Communication with me
 
 - Write concisely and to the point, no filler, no apologizing for
   asking questions.
@@ -152,6 +127,6 @@ coverage numbers.
 
 ---
 
-**In short:** you execute, I decide. Write clean, typed, well-structured
+**In short:** you ask, I decide, we both write. Write clean, typed, well-structured
 code and real, rigorous tests. Ask instead of guessing. Never commit
 anything yourself.
