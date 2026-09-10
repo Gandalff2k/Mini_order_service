@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 
-from aiokafka import AIOKafkaProducer
-from sqlalchemy import text
-
-from app.infra.db import create_database_engine
-from app.infra.settings import Settings, get_settings
+from app.infra.db import create_database_engine, create_session_factory
+from app.infra.kafka import create_producer
+from app.infra.settings import get_settings
+from app.services.outbox_publisher import OutboxPublisher
 from app.workers.runner import run_worker
 
 logger = logging.getLogger(__name__)
@@ -15,30 +15,41 @@ logger = logging.getLogger(__name__)
 WORKER_NAME = "outbox-publisher"
 
 
-def build_producer(settings: Settings) -> AIOKafkaProducer:
-    return AIOKafkaProducer(
-        bootstrap_servers=settings.kafka.bootstrap_servers,
-        acks="all",
-        enable_idempotence=True,
-        linger_ms=settings.kafka.producer_linger_ms,
-        request_timeout_ms=settings.kafka.producer_request_timeout_ms,
-    )
+async def wait_for(stop: asyncio.Event, seconds: float) -> None:
+    with contextlib.suppress(TimeoutError):
+        await asyncio.wait_for(stop.wait(), timeout=seconds)
 
 
 async def publish_outbox(stop: asyncio.Event) -> None:
     settings = get_settings()
     engine = create_database_engine(settings.database)
-    producer = build_producer(settings)
+    session_factory = create_session_factory(engine)
+    producer = create_producer(settings.kafka)
+    publisher = OutboxPublisher(
+        session_factory,
+        producer,
+        settings.outbox,
+        settings.kafka.orders_topic,
+    )
+
+    await producer.start()
+    logger.info(
+        "%s publishing to %s via %s",
+        WORKER_NAME,
+        settings.kafka.orders_topic,
+        settings.kafka.bootstrap_servers,
+    )
     try:
-        async with engine.connect() as connection:
-            await connection.execute(text("SELECT 1"))
-        await producer.start()
-        logger.info(
-            "%s connected to database and broker %s",
-            WORKER_NAME,
-            settings.kafka.bootstrap_servers,
-        )
-        await stop.wait()
+        while not stop.is_set():
+            try:
+                outcome = await publisher.publish_pending()
+            except Exception:
+                logger.exception("%s cycle failed", WORKER_NAME)
+                await wait_for(stop, settings.outbox.backoff_cap_seconds)
+                continue
+
+            if outcome.claimed == 0:
+                await wait_for(stop, settings.outbox.poll_interval_seconds)
     finally:
         await producer.stop()
         await engine.dispose()

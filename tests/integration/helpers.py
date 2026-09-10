@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Product
+from app.models import OutboxMessage, Product
 
 
 async def create_product(
@@ -39,3 +40,22 @@ async def stock_of(session: AsyncSession, product_id: UUID) -> int:
     assert product is not None
     await session.refresh(product)
     return product.stock
+
+
+def make_outbox_message(
+    *,
+    event_id: UUID | None = None,
+    aggregate_id: UUID | None = None,
+    available_at: datetime | None = None,
+) -> OutboxMessage:
+    order_id = aggregate_id or uuid4()
+    message = OutboxMessage(
+        event_id=event_id or uuid4(),
+        aggregate_type="order",
+        aggregate_id=order_id,
+        event_type="order.created",
+        payload={"order_id": str(order_id), "total_amount": "10.00"},
+    )
+    if available_at is not None:
+        message.available_at = available_at
+    return message

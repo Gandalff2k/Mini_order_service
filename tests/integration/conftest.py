@@ -10,6 +10,7 @@ from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from testcontainers.community.kafka import KafkaContainer
 from testcontainers.community.postgres import PostgresContainer
 
 from app.infra.db import create_database_engine, create_session_factory
@@ -18,6 +19,7 @@ from app.main import create_app
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 POSTGRES_IMAGE = "postgres:16-alpine"
+KAFKA_IMAGE = "confluentinc/cp-kafka:7.6.1"
 
 
 TABLES = ("order_items", "orders", "products", "outbox_messages", "notifications")
@@ -76,3 +78,9 @@ async def api_client(database_settings: DatabaseSettings) -> AsyncIterator[Async
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://testserver") as client:
             yield client
+
+
+@pytest.fixture(scope="session")
+def kafka_bootstrap() -> Iterator[str]:
+    with KafkaContainer(KAFKA_IMAGE) as container:
+        yield str(container.get_bootstrap_server())
