@@ -3,8 +3,11 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
+from pydantic import BaseModel, ValidationError
+
+from app.core.exceptions import MalformedEventError
 from app.core.money import format_amount
 from app.models import Order, OutboxMessage
 
@@ -64,3 +67,35 @@ def build_envelope(message: OutboxMessage) -> EventEnvelope:
             ("schema_version", str(message.schema_version).encode()),
         ],
     )
+
+
+class IncomingEvent(BaseModel):
+    event_id: UUID
+    event_type: str
+    aggregate_type: str
+    aggregate_id: UUID
+    version: int
+    data: dict[str, Any]
+
+
+class OrderCreatedData(BaseModel):
+    order_id: UUID
+    customer_id: UUID
+
+
+def parse_event(value: bytes | None) -> IncomingEvent:
+    if not value:
+        raise MalformedEventError("message body is empty")
+    try:
+        return IncomingEvent.model_validate_json(value)
+    except ValidationError as error:
+        raise MalformedEventError(f"envelope does not match the contract: {error}") from error
+
+
+def parse_order_created(event: IncomingEvent) -> OrderCreatedData:
+    if event.version != ORDER_CREATED_SCHEMA_VERSION:
+        raise MalformedEventError(f"unsupported schema version {event.version}")
+    try:
+        return OrderCreatedData.model_validate(event.data)
+    except ValidationError as error:
+        raise MalformedEventError(f"order.created payload is invalid: {error}") from error

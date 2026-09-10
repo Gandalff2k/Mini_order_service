@@ -8,6 +8,10 @@ class DomainError(Exception):
     code: str
 
 
+class MalformedEventError(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class StockShortage:
     product_id: UUID

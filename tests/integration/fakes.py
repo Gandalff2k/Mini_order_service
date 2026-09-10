@@ -14,7 +14,8 @@ class SentMessage:
 
     @property
     def event_id(self) -> str:
-        return dict(self.headers)["event_id"].decode()
+        header = dict(self.headers).get("event_id")
+        return header.decode() if header else ""
 
 
 class BrokerUnavailableError(RuntimeError):
