@@ -1,12 +1,19 @@
 ## Start
 
 docker compose up -d --build  # to start up
+
 docker compose up -d --build --scale outbox-worker=2 # to get two outbox workers they can run side by side safely 
+
 pip install -e ".[dev]"   # python 3.12, needed once before running tests
+
 pytest                    # all 110 tests, starts Postgres and Kafka containers itself
+
 pytest -m "not kafka"     # same minus the two broker tests, much faster
+
 check the localhost:8000/docs to work with endpoints manually
+
 docker compose down -v # to remove the containers and their volumes 
+
 
 
 ## Architecture
